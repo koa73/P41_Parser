@@ -1,10 +1,5 @@
 # Шаблоны для поиска stencil объектов в файлах drawio
 ---
-Segment:
-  patterns:
-    - ""
-  parsers:
-  schema: "none"
 
 Network:
   patterns:
@@ -16,18 +11,13 @@ Network:
 
 Router:
   patterns:
-    - ""
+    - "shape=mxgraph.cisco.routers.router;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;labelBackgroundColor=default;fontSize=12;fontColor=#FFFFFF"
   parsers:
-  schema: "none"
-
-Firewall:
-  patterns:
-    - ""
-  parsers:
-  schema: "none"
+    - description: ".*"
 
 Switch:
   patterns:
-    - ""
+    - "shape=mxgraph.cisco.wireless.wlan_controller;"
+    - "shape=mxgraph.cisco.switches.workgroup_switch;"
   parsers:
   schema: "none"
