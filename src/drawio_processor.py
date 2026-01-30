@@ -191,14 +191,14 @@ class DrawIOProcessor:
             if root is None:
                 continue
 
-            # Ищем все элементы mxCell с атрибутом style, содержащим информацию о stencil
+            # Ищем все элементы mxCell с атрибутом style, содержащим информацию о фигуре
             for element in root.iter():
                 if element.tag == 'mxCell':
                     style = element.get('style', '')
                     value = element.get('value', '')
 
-                    # Проверяем, содержит ли стиль информацию о stencil
-                    if 'shape=stencil(' in style.lower():
+                    # Проверяем, содержит ли стиль информацию о фигуре
+                    if 'shape=' in style.lower():
                         matched = False
 
                         # Проверяем паттерны в значении элемента
@@ -299,14 +299,14 @@ class DrawIOProcessor:
         if root is None:
             return matched_objects
 
-        # Ищем все элементы mxCell с атрибутом style, содержащим информацию о stencil
+        # Ищем все элементы mxCell с атрибутом style, содержащим информацию о stencil или другие фигуры
         for element in root.iter():
             if element.tag == 'mxCell':
                 style = element.get('style', '')
                 value = element.get('value', '')
 
-                # Проверяем, содержит ли стиль информацию о stencil
-                if 'shape=stencil(' in style.lower():
+                # Проверяем, содержит ли стиль информацию о stencil или другие фигуры (например, роутеры)
+                if 'shape=' in style.lower():
                     if self._element_matches_template(style, value, template_config):
                         obj_info = self._create_object_info(element, style, value, template_name, template_config)
                         matched_objects.append(obj_info)
@@ -453,12 +453,13 @@ class DrawIOProcessor:
         """
         extracted_data = {}
 
-        if 'parsers' in template_config:
+        if 'parsers' in template_config and template_config['parsers'] is not None:
             for parser_item in template_config['parsers']:
-                for data_name, regex_pattern in parser_item.items():
-                    matches = re.findall(regex_pattern, value, re.IGNORECASE)
-                    if matches:
-                        extracted_data[data_name] = matches
+                if parser_item is not None:  # Проверяем, что parser_item не None
+                    for data_name, regex_pattern in parser_item.items():
+                        matches = re.findall(regex_pattern, value, re.IGNORECASE)
+                        if matches:
+                            extracted_data[data_name] = matches
 
         return extracted_data
 

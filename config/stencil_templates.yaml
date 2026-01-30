@@ -1,5 +1,11 @@
 # Шаблоны для поиска stencil объектов в файлах drawio
 ---
+Segnent:
+  patterns:
+    - 'fillColor=#BFBFBF;value="INET-EDGE"'
+  parsers:
+    - description: "value=\"([^\"]+)\""
+  schema: "none"
 
 Network:
   patterns:
@@ -14,10 +20,12 @@ Router:
     - "shape=mxgraph.cisco.routers.router;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;labelBackgroundColor=default;fontSize=12;fontColor=#FFFFFF"
   parsers:
     - description: ".*"
+  schema: "none"
 
 Switch:
   patterns:
     - "shape=mxgraph.cisco.wireless.wlan_controller;"
     - "shape=mxgraph.cisco.switches.workgroup_switch;"
   parsers:
+    - description: ".*"
   schema: "none"
