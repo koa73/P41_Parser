@@ -277,73 +277,190 @@ class DrawIOProcessor:
         # Перебираем все шаблоны из файла и последовательно ищем их в исходном файле
         for template_name, template_config in templates.items():
             # Ищем объекты для текущего шаблона
-            matched_objects = []
-
-            # Читаем файл
-            root = self.parse_drawio_structure(filename)
-            if root is None:
-                continue
-
-            # Ищем все элементы mxCell с атрибутом style, содержащим информацию о stencil
-            for element in root.iter():
-                if element.tag == 'mxCell':
-                    style = element.get('style', '')
-                    value = element.get('value', '')
-
-                    # Проверяем, содержит ли стиль информацию о stencil
-                    if 'shape=stencil(' in style.lower():
-                        matched = False
-
-                        # Проверяем паттерны
-                        if 'patterns' in template_config:
-                            for pattern in template_config['patterns']:
-                                # Разбиваем паттерн на отдельные критерии по разделителю ';'
-                                criteria = pattern.split(';')
-                                all_criteria_met = True
-
-                                for criterion in criteria:
-                                    criterion = criterion.strip().lower()
-                                    if criterion and criterion not in (style + ' ' + value).lower():
-                                        all_criteria_met = False
-                                        break
-
-                                if all_criteria_met:
-                                    matched = True
-                                    break
-
-                        if matched:
-                            # Извлекаем дополнительные данные с помощью парсеров
-                            extracted_data = {}
-                            parsed_values = {}  # Словарь для хранения всех найденных значений парсеров
-
-                            if 'parsers' in template_config:
-                                for parser_item in template_config['parsers']:
-                                    for data_name, regex_pattern in parser_item.items():
-                                        matches = re.findall(regex_pattern, value, re.IGNORECASE)
-                                        if matches:
-                                            extracted_data[data_name] = matches
-                                            # Сохраняем все найденные значения для возможного использования в других операциях
-                                            parsed_values[data_name] = matches
-
-                            # Извлекаем информацию о найденном объекте
-                            obj_info = {
-                                'id': element.get('id', ''),
-                                'value': element.get('value', ''),
-                                'style': style,
-                                'parent': element.get('parent', ''),
-                                'vertex': element.get('vertex', ''),
-                                'geometry': element.find('mxGeometry'),
-                                'matched_type': template_name,
-                                'schema': template_config.get('schema', 'none'),
-                                'extracted_data': extracted_data
-                            }
-
-                            matched_objects.append(obj_info)
-
+            matched_objects = self._find_objects_for_template(template_config, filename, template_name)
             # Сохраняем результаты для текущего шаблона
             results_by_template[template_name] = matched_objects
 
         return results_by_template
+
+    def _find_objects_for_template(self, template_config: dict, filename: str, template_name: str) -> list:
+        """
+        Поиск объектов для одного шаблона
+
+        :param template_config: конфигурация шаблона
+        :param filename: имя файла для поиска
+        :param template_name: имя шаблона
+        :return: список найденных объектов
+        """
+        matched_objects = []
+
+        # Читаем файл
+        root = self.parse_drawio_structure(filename)
+        if root is None:
+            return matched_objects
+
+        # Ищем все элементы mxCell с атрибутом style, содержащим информацию о stencil
+        for element in root.iter():
+            if element.tag == 'mxCell':
+                style = element.get('style', '')
+                value = element.get('value', '')
+
+                # Проверяем, содержит ли стиль информацию о stencil
+                if 'shape=stencil(' in style.lower():
+                    if self._element_matches_template(style, value, template_config):
+                        obj_info = self._create_object_info(element, style, value, template_name, template_config)
+                        matched_objects.append(obj_info)
+
+        return matched_objects
+
+    def _element_matches_template(self, style: str, value: str, template_config: dict) -> bool:
+        """
+        Проверяет, соответствует ли элемент шаблону
+
+        :param style: стиль элемента
+        :param value: значение элемента
+        :param template_config: конфигурация шаблона
+        :return: True если элемент соответствует шаблону
+        """
+        if 'patterns' in template_config:
+            for pattern in template_config['patterns']:
+                if '|' in pattern or '!' in pattern:
+                    # Используем сложную логику для ИЛИ и НЕ
+                    if self._evaluate_complex_pattern(pattern, style, value):
+                        return True
+                else:
+                    # Простая логика И
+                    if self._evaluate_simple_pattern(pattern, style, value):
+                        return True
+
+        return False
+
+    def _evaluate_simple_pattern(self, pattern: str, style: str, value: str) -> bool:
+        """
+        Проверяет простой паттерн (только И)
+
+        :param pattern: паттерн для проверки
+        :param style: стиль элемента
+        :param value: значение элемента
+        :return: True если паттерн соответствует
+        """
+        search_text = (style + ' ' + value).lower()
+        criteria = pattern.split(';')
+
+        for criterion in criteria:
+            criterion = criterion.strip().lower()
+            if criterion and criterion not in search_text:
+                return False
+
+        return True
+
+    def _evaluate_complex_pattern(self, pattern: str, style: str, value: str) -> bool:
+        """
+        Оценка сложного паттерна с логическими операторами
+
+        :param pattern: паттерн с логическими операторами
+        :param style: стиль элемента
+        :param value: значение элемента
+        :return: True если паттерн соответствует
+        """
+        search_text = (style + ' ' + value).lower()
+
+        # Разбиваем паттерн по ИЛИ (|)
+        or_parts = pattern.split('|')
+
+        for or_part in or_parts:
+            # Проверяем части на наличие НЕ (!)
+            and_parts = []
+            current_part = ""
+
+            i = 0
+            while i < len(or_part):
+                if or_part[i] == '!':
+                    # Сохраняем предыдущую часть
+                    if current_part.strip():
+                        and_parts.append(('AND', current_part.strip()))
+                    current_part = ""
+
+                    # Пропускаем ! и собираем следующую часть
+                    i += 1
+                    negated_part = ""
+                    while i < len(or_part) and or_part[i] != ';':
+                        negated_part += or_part[i]
+                        i += 1
+                    and_parts.append(('NOT', negated_part.strip()))
+                elif or_part[i] == ';':
+                    if current_part.strip():
+                        and_parts.append(('AND', current_part.strip()))
+                        current_part = ""
+                    i += 1
+                else:
+                    current_part += or_part[i]
+                    i += 1
+
+            # Добавляем последнюю часть
+            if current_part.strip():
+                and_parts.append(('AND', current_part.strip()))
+
+            # Проверяем условия И и НЕ
+            or_part_match = True
+            for op, part in and_parts:
+                if op == 'AND':
+                    if part and part.lower() not in search_text:
+                        or_part_match = False
+                        break
+                elif op == 'NOT':
+                    if part and part.lower() in search_text:
+                        or_part_match = False
+                        break
+
+            if or_part_match:
+                return True
+
+        return False
+
+    def _create_object_info(self, element, style: str, value: str, template_name: str, template_config: dict) -> dict:
+        """
+        Создает информацию об объекте
+
+        :param element: XML элемент
+        :param style: стиль элемента
+        :param value: значение элемента
+        :param template_name: имя шаблона
+        :param template_config: конфигурация шаблона
+        :return: словарь с информацией об объекте
+        """
+        extracted_data = self._extract_data_from_element(value, template_config)
+
+        return {
+            'id': element.get('id', ''),
+            'value': value,
+            'style': style,
+            'parent': element.get('parent', ''),
+            'vertex': element.get('vertex', ''),
+            'geometry': element.find('mxGeometry'),
+            'matched_type': template_name,
+            'schema': template_config.get('schema', 'none'),
+            'extracted_data': extracted_data
+        }
+
+    def _extract_data_from_element(self, value: str, template_config: dict) -> dict:
+        """
+        Извлекает данные из элемента с помощью парсеров
+
+        :param value: значение элемента
+        :param template_config: конфигурация шаблона
+        :return: словарь с извлеченными данными
+        """
+        extracted_data = {}
+
+        if 'parsers' in template_config:
+            for parser_item in template_config['parsers']:
+                for data_name, regex_pattern in parser_item.items():
+                    matches = re.findall(regex_pattern, value, re.IGNORECASE)
+                    if matches:
+                        extracted_data[data_name] = matches
+
+        return extracted_data
 
     @staticmethod
     def _clean_html_content(text: str) -> str:
