@@ -158,7 +158,7 @@ class DrawIOProcessor:
             print(f"Ошибка при загрузке шаблонов из {template_file}: {str(e)}")
             return None
 
-    def find_stencils_by_all_templates(self, filename: str = None) -> dict:
+    def find_stencils_by_all_templates_(self, filename: str = None) -> dict:
         """
         Поиск стencилов по всем шаблонам из файла шаблонов в указанном файле drawio
 
@@ -214,6 +214,100 @@ class DrawIOProcessor:
                             cell_style = style.lower()
                             for pattern in template_config['patterns']:
                                 if pattern.lower() in cell_style:
+                                    matched = True
+                                    break
+
+                        if matched:
+                            # Извлекаем дополнительные данные с помощью парсеров
+                            extracted_data = {}
+                            parsed_values = {}  # Словарь для хранения всех найденных значений парсеров
+
+                            if 'parsers' in template_config:
+                                for parser_item in template_config['parsers']:
+                                    for data_name, regex_pattern in parser_item.items():
+                                        matches = re.findall(regex_pattern, value, re.IGNORECASE)
+                                        if matches:
+                                            extracted_data[data_name] = matches
+                                            # Сохраняем все найденные значения для возможного использования в других операциях
+                                            parsed_values[data_name] = matches
+
+                            # Извлекаем информацию о найденном объекте
+                            obj_info = {
+                                'id': element.get('id', ''),
+                                'value': element.get('value', ''),
+                                'style': style,
+                                'parent': element.get('parent', ''),
+                                'vertex': element.get('vertex', ''),
+                                'geometry': element.find('mxGeometry'),
+                                'matched_type': template_name,
+                                'schema': template_config.get('schema', 'none'),
+                                'extracted_data': extracted_data
+                            }
+
+                            matched_objects.append(obj_info)
+
+            # Сохраняем результаты для текущего шаблона
+            results_by_template[template_name] = matched_objects
+
+        return results_by_template
+
+    def find_stencils_by_all_templates(self, filename: str = None) -> dict:
+        """
+        Поиск стencилов по всем шаблонам из файла шаблонов в указанном файле drawio
+
+        :param filename: имя файла для поиска (если не указано, используется выбранный файл)
+        :return: словарь с результатами по каждому шаблону
+        """
+        if filename is None:
+            filename = self.selected_file
+
+        if filename is None:
+            print("Файл не выбран.")
+            return {}
+
+        # Загружаем шаблоны
+        templates = self.load_stencil_templates()
+        if not templates:
+            print("Не удалось загрузить шаблоны.")
+            return {}
+
+        # Словарь для хранения результатов по каждому шаблону
+        results_by_template = {}
+
+        # Перебираем все шаблоны из файла и последовательно ищем их в исходном файле
+        for template_name, template_config in templates.items():
+            # Ищем объекты для текущего шаблона
+            matched_objects = []
+
+            # Читаем файл
+            root = self.parse_drawio_structure(filename)
+            if root is None:
+                continue
+
+            # Ищем все элементы mxCell с атрибутом style, содержащим информацию о stencil
+            for element in root.iter():
+                if element.tag == 'mxCell':
+                    style = element.get('style', '')
+                    value = element.get('value', '')
+
+                    # Проверяем, содержит ли стиль информацию о stencil
+                    if 'shape=stencil(' in style.lower():
+                        matched = False
+
+                        # Проверяем паттерны
+                        if 'patterns' in template_config:
+                            for pattern in template_config['patterns']:
+                                # Разбиваем паттерн на отдельные критерии по разделителю ';'
+                                criteria = pattern.split(';')
+                                all_criteria_met = True
+
+                                for criterion in criteria:
+                                    criterion = criterion.strip().lower()
+                                    if criterion and criterion not in (style + ' ' + value).lower():
+                                        all_criteria_met = False
+                                        break
+
+                                if all_criteria_met:
                                     matched = True
                                     break
 
