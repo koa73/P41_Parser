@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<favorite_objects>
+    <!-- Пример структуры файла Избранное_Р41.xml -->
+    <object id="1" name="Rectangle" type="rectangle" color="#FFFFFF" strokeColor="#000000" fillColor="#FFFFFF" strokeWidth="1" rounded="0"/>
+    <object id="2" name="Rounded Rectangle" type="rectangle" color="#FFFFFF" strokeColor="#000000" fillColor="#FFFFFF" strokeWidth="1" rounded="1"/>
+    <object id="3" name="Ellipse" type="ellipse" color="#FFFFFF" strokeColor="#000000" fillColor="#FFFFFF" strokeWidth="1"/>
+    <object id="4" name="Circle" type="circle" color="#FFFFFF" strokeColor="#000000" fillColor="#FFFFFF" strokeWidth="1"/>
+    <object id="5" name="Triangle" type="triangle" color="#FFFFFF" strokeColor="#000000" fillColor="#FFFFFF" strokeWidth="1"/>
+</favorite_objects>

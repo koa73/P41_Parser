@@ -1,0 +1,10 @@
+# Шаблоны для поиска stencil объектов в файлах drawio
+---
+Network:
+  patterns:
+    - "fillColor=#c0cfe2"
+    - "shape=stencil("
+    - "rounded=1"
+  parsers:
+    - {"ip": "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(?:/\\d{1,2})?)"}
+  schema: "none"
