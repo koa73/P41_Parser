@@ -158,168 +158,6 @@ class DrawIOProcessor:
             print(f"Ошибка при загрузке шаблонов из {template_file}: {str(e)}")
             return None
 
-    def find_stencils_by_all_templates_(self, filename: str = None) -> dict:
-        """
-        Поиск стencилов по всем шаблонам из файла шаблонов в указанном файле drawio
-
-        :param filename: имя файла для поиска (если не указано, используется выбранный файл)
-        :return: словарь с результатами по каждому шаблону
-        """
-        if filename is None:
-            filename = self.selected_file
-
-        if filename is None:
-            print("Файл не выбран.")
-            return {}
-
-        # Загружаем шаблоны
-        templates = self.load_stencil_templates()
-        if not templates:
-            print("Не удалось загрузить шаблоны.")
-            return {}
-
-        # Словарь для хранения результатов по каждому шаблону
-        results_by_template = {}
-
-        # Перебираем все шаблоны из файла и последовательно ищем их в исходном файле
-        for template_name, template_config in templates.items():
-            # Ищем объекты для текущего шаблона
-            matched_objects = []
-
-            # Читаем файл
-            root = self.parse_drawio_structure(filename)
-            if root is None:
-                continue
-
-            # Ищем все элементы mxCell с атрибутом style, содержащим информацию о stencil
-            for element in root.iter():
-                if element.tag == 'mxCell':
-                    style = element.get('style', '')
-                    value = element.get('value', '')
-
-                    # Проверяем, содержит ли стиль информацию о stencil
-                    if 'shape=stencil(' in style.lower():
-                        matched = False
-
-                        # Проверяем паттерны в значении элемента
-                        if 'patterns' in template_config:
-                            for pattern in template_config['patterns']:
-                                # Для нового формата объединяем все критерии в один паттерн
-                                if pattern.lower() in (style + ' ' + value).lower():
-                                    matched = True
-                                    break
-
-                        # Если не нашли совпадение в значении, проверяем стиль
-                        if not matched and 'patterns' in template_config:
-                            cell_style = style.lower()
-                            for pattern in template_config['patterns']:
-                                if pattern.lower() in cell_style:
-                                    matched = True
-                                    break
-
-                        if matched:
-                            # Извлекаем дополнительные данные с помощью парсеров
-                            extracted_data = {}
-                            ip_addresses = []  # Список найденных IP-адресов для последующего удаления из описания
-
-                            if 'parsers' in template_config:
-                                for parser_item in template_config['parsers']:
-                                    for data_name, regex_pattern in parser_item.items():
-                                        matches = re.findall(regex_pattern, value, re.IGNORECASE)
-                                        if matches:
-                                            extracted_data[data_name] = matches
-
-                                            # Сохраняем найденные IP-адреса для последующего использования
-                                            if data_name == 'ip':
-                                                ip_addresses.extend(matches)
-
-                            # Для типа Network извлекаем описание как остаток текста без IP-адресов
-                            if template_name == 'Network':
-                                desc_text = value
-                                # Удаляем все найденные IP-адреса из текста
-                                for ip_addr in ip_addresses:
-                                    desc_text = re.sub(re.escape(ip_addr), '', desc_text)
-                                # Очищаем текст описания от HTML тегов и лишних пробелов
-                                desc_text = re.sub('<[^<]+?>', ' ', desc_text).strip()
-                                # Убираем лишние пробелы и переносы строк
-                                desc_text = re.sub(r'\s+', ' ', desc_text).strip()
-                                # Убираем специальные символы, оставшиеся после очистки HTML
-                                desc_text = desc_text.replace('&nbsp;', ' ').strip()
-                                desc_text = re.sub(r'\s+', ' ', desc_text).strip()  # Еще раз нормализуем пробелы
-                                # Проверяем, что текст содержит осмысленную информацию (не только HTML-остатки)
-                                # Убираем все не-буквенные и не-цифровые символы, кроме пробелов
-                                meaningful_text = re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9\s]', ' ', desc_text).strip()
-                                meaningful_text = re.sub(r'\s+', ' ', meaningful_text).strip()  # Нормализуем пробелы
-                                # Проверяем, есть ли в тексте хотя бы одна буква или цифра
-                                has_meaningful_chars = bool(re.search(r'[a-zA-Zа-яА-ЯёЁ0-9]', meaningful_text))
-                                if meaningful_text and has_meaningful_chars:  # Добавляем только если текст содержит осмысленные символы
-                                    extracted_data['description'] = [desc_text]
-
-                            # Извлекаем информацию о найденном объекте
-                            obj_info = {
-                                'id': element.get('id', ''),
-                                'value': element.get('value', ''),
-                                'style': style,
-                                'parent': element.get('parent', ''),
-                                'vertex': element.get('vertex', ''),
-                                'geometry': element.find('mxGeometry'),
-                                'matched_type': template_name,
-                                'schema': template_config.get('schema', 'none'),
-                                'extracted_data': extracted_data
-                            }
-                            matched_objects.append(obj_info)
-
-            # Сохраняем результаты для текущего шаблона
-            results_by_template[template_name] = matched_objects
-
-        return results_by_template
-
-    def generate_summary_report(self, results_by_template: dict):
-        """
-        Генерация сводного отчета по найденным стencилам
-
-        :param results_by_template: словарь с результатами по каждому шаблону
-        """
-        print("\n" + "="*60)
-        print("СВОДНЫЙ ОТЧЕТ ПО НАЙДЕННЫМ STENCILS")
-        print("="*60)
-
-        total_objects = 0
-        for template_name, objects in results_by_template.items():
-            if objects:
-                print(f"\nШаблон: {template_name}")
-                for obj in objects:
-                    # Формируем строку с данными объекта
-                    obj_str = f"  - ID: {obj['id']}"
-                    if obj['extracted_data']:
-                        # Добавляем IP-адреса, если они есть
-                        if 'ip' in obj['extracted_data']:
-                            ip_list = obj['extracted_data']['ip']
-                            for ip in ip_list:
-                                obj_str += f" ip:{ip}"
-
-                        # Добавляем описание, если оно есть
-                        if 'description' in obj['extracted_data']:
-                            desc_list = obj['extracted_data']['description']
-                            for desc in desc_list:
-                                # Очищаем описание от HTML тегов и лишних пробелов
-                                clean_desc = re.sub('<[^<]+?>', '', desc).strip()
-                                clean_desc = re.sub(r'\s+', ' ', clean_desc).strip()  # Нормализуем пробелы
-                                if clean_desc:  # Выводим только если описание не пустое
-                                    obj_str += f" Description: {clean_desc}"
-
-                    print(obj_str)
-
-                print(f"  Обнаружено объектов: {len(objects)}")
-                total_objects += len(objects)
-            else:
-                print(f"\nШаблон: {template_name}")
-                print(f"  Обнаружено объектов: 0")
-
-        print("\n" + "="*60)
-        print(f"ИТОГО: Обнаружено объектов {total_objects}")
-        print("="*60)
-
     def find_stencils_by_all_templates(self, filename: str = None) -> dict:
         """
         Поиск стencилов по всем шаблонам из файла шаблонов в указанном файле drawio
@@ -412,3 +250,61 @@ class DrawIOProcessor:
             results_by_template[template_name] = matched_objects
 
         return results_by_template
+
+    @staticmethod
+    def _clean_html_content(text: str) -> str:
+        """
+        Удаляет HTML теги из строки и нормализует пробелы
+
+        :param text: исходный текст, возможно содержащий HTML
+        :return: очищенный текст
+        """
+        if '<' in text and '>' in text:  # Проверяем наличие HTML тегов
+            clean_text = re.sub('<[^<]+?>', ' ', text).strip()
+            clean_text = re.sub(r'\s+', ' ', clean_text).strip()  # Нормализуем пробелы
+            clean_text = clean_text.replace('&nbsp;', ' ').strip()
+            clean_text = re.sub(r'\s+', ' ', clean_text).strip()  # Еще раз нормализуем пробелы
+            return clean_text
+        return text
+
+    def generate_summary_report(self, results_by_template: dict):
+        """
+        Генерация сводного отчета по найденным стencилам
+
+        :param results_by_template: словарь с результатами по каждому шаблону
+        """
+        print("\n" + "=" * 60)
+        print("СВОДНЫЙ ОТЧЕТ ПО НАЙДЕННЫМ STENCILS")
+        print("=" * 60)
+
+        total_objects = 0
+        for template_name, objects in results_by_template.items():
+            if objects:
+                print(f"\nШаблон: {template_name}")
+                for obj in objects:
+                    # Формируем строку с данными объекта
+                    obj_str = f"  - ID: {obj['id']}"
+
+                    if obj['extracted_data']:
+                        # Выводим все данные из extracted_data в формате имя переменной : значение
+                        for key, values in obj['extracted_data'].items():
+                            for value in values:
+                                # Проверяем, что значение не пустое
+                                if value:
+                                    # Очищаем значение от HTML тегов, если они есть
+                                    clean_value = self._clean_html_content(str(value))
+                                    # Проверяем, что после очистки значение не пустое
+                                    if clean_value.strip():
+                                        obj_str += f" {key}: {clean_value}"
+
+                    print(obj_str)
+
+                print(f"  Обнаружено объектов: {len(objects)}")
+                total_objects += len(objects)
+            else:
+                print(f"\nШаблон: {template_name}")
+                print(f"  Обнаружено объектов: 0")
+
+        print("\n" + "=" * 60)
+        print(f"ИТОГО: Обнаружено объектов {total_objects}")
+        print("=" * 60)
