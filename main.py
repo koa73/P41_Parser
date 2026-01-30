@@ -5,7 +5,6 @@
 
 import sys
 import os
-import re
 
 # Добавляем директорию src в путь поиска модулей
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -48,7 +47,6 @@ def main():
         for template_name, matched_objects in results_by_template.items():
             # Выводим сообщение об этапе работы с подстановкой имени шаблона
             print(f"\nИзвлечение stencils {GREEN}{template_name}{RESET}", end="")
-            #print(f"Поиск шаблона: {template_name}")
             print(f"  Найдено объектов: {len(matched_objects)}")
 
         # Используем метод из библиотеки для генерации сводного отчета

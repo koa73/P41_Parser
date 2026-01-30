@@ -1,9 +1,33 @@
 # Шаблоны для поиска stencil объектов в файлах drawio
 ---
+Segment:
+  patterns:
+    - ""
+  parsers:
+  schema: "none"
+
 Network:
   patterns:
     - "fillColor=#c0cfe2;shape=stencil(;rounded=1"
   parsers:
     - {"ip": "(\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\s*(?:/\\s*\\d{1,2}|/\\s*(?:255|254|252|248|240|224|192|128)\\.(?:255|254|252|248|240|224|192|128|0)\\.(?:255|254|252|248|240|224|192|128|0)\\.(?:255|254|252|248|240|224|192|128|0))?\\b)"}
     - {"description": ".*"}
+  schema: "none"
+
+Router:
+  patterns:
+    - ""
+  parsers:
+  schema: "none"
+
+Firewall:
+  patterns:
+    - ""
+  parsers:
+  schema: "none"
+
+Switch:
+  patterns:
+    - ""
+  parsers:
   schema: "none"
