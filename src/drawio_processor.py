@@ -253,7 +253,7 @@ class DrawIOProcessor:
 
     def find_stencils_by_all_templates(self, filename: str = None) -> dict:
         """
-        Поиск стencилов по всем шаблонам из файла шаблонов в указанном файле drawio
+        Поиск stencils по всем шаблонам из файла шаблонов в указанном файле drawio
 
         :param filename: имя файла для поиска (если не указано, используется выбранный файл)
         :return: словарь с результатами по каждому шаблону
@@ -480,7 +480,7 @@ class DrawIOProcessor:
 
     def generate_summary_report(self, results_by_template: dict):
         """
-        Генерация сводного отчета по найденным стencилам
+        Генерация сводного отчета по найденным stencils
 
         :param results_by_template: словарь с результатами по каждому шаблону
         """
