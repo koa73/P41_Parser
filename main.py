@@ -40,8 +40,8 @@ def main():
     selected_file = processor.show_menu_and_select_file()
 
     if selected_file:
-        # Используем новый метод из библиотеки для поиска всех стencилов по шаблонам
-        results_by_template = processor.find_stencils_by_all_templates(selected_file)
+        # Используем новый метод из библиотеки для поиска всех stencils по шаблонам
+        results_by_template =processor.find_stencils_by_all_templates(selected_file)
 
         # Выводим информацию о поиске шаблонов и количестве найденных объектов
         for template_name, matched_objects in results_by_template.items():

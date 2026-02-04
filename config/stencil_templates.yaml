@@ -2,7 +2,7 @@
 ---
 Segnent:
   patterns:
-    - 'fillColor=#BFBFBF;value="INET-EDGE"'
+    - 'fillColor=#BFBFBF|value="INET-EDGE"'
   parsers:
     - description: "value=\"([^\"]+)\""
   schema: "none"
